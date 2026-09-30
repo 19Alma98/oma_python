@@ -24,7 +24,7 @@ cov_ssi_algorithm = CovSSI(
     frequency_noise_threshold=0.03,
     damping_noise_threshold=0.03,
     mac_noise_threshold=0.03,
-    minimum_cluster_dimension=1,
+    minimum_cluster_dimension=2,
     maximum_distance=0.03,
     continuous_mode=False,
 )
@@ -852,6 +852,41 @@ def test_clustering_analysis_should_return_expected_results(
     np.testing.assert_array_equal(expected_cluster_dimensions, clustered_avt_parameters["cluster_dimensions"])
     np.testing.assert_allclose(expected_frequency_bounds, clustered_avt_parameters["frequency_bounds"], atol=TOLERANCE)
     np.testing.assert_allclose(expected_damping_bounds, clustered_avt_parameters["damping_bounds"], atol=TOLERANCE)
+
+
+def test_clustering_keeps_clusters_with_size_equal_to_minimum(
+    oma_clustering_analysis_inputs,
+):
+    """With inclusive >=, size == minimum_cluster_dimension must be retained.
+
+    The golden clustering inputs yield two clusters of size 2. Using
+    minimum_cluster_dimension=2, a strict `>` filter would drop both;
+    `>=` keeps them.
+    """
+    frequencies, damping_ratios, mode_shapes = oma_clustering_analysis_inputs
+    algorithm = CovSSI(
+        frequency_max=5,
+        frequency_min=0,
+        order_max=5,
+        order_min=1,
+        order_steps=1,
+        min_mpc=0.03,
+        time_lag=1.2,
+        number_of_fft_points=2**4,
+        num_svd_plots=2,
+        damping_max_value=10,
+        frequency_noise_threshold=0.03,
+        damping_noise_threshold=0.03,
+        mac_noise_threshold=0.03,
+        minimum_cluster_dimension=2,
+        maximum_distance=0.03,
+        continuous_mode=False,
+    )
+    clustered = algorithm._cluster_modal_parameters(
+        frequencies, damping_ratios, mode_shapes, shuffle=False
+    )
+    assert len(clustered["frequencies"]) == 2
+    np.testing.assert_array_equal(clustered["cluster_dimensions"], np.array([2, 2]))
 
 
 def test_cut_off_modal_parameters_should_raise_error_if_no_frequencies_are_found(mocker: MockerFixture):

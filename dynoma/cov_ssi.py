@@ -114,7 +114,11 @@ class CovSSI(OmaAlgorithm):
     frequency_noise_threshold: float = Field(ge=0, default=0.03)
     damping_noise_threshold: float = Field(ge=0, default=0.03)
     mac_noise_threshold: float = Field(ge=0, default=0.03)
-    minimum_cluster_dimension: int = Field(gt=0, default=3)
+    minimum_cluster_dimension: int = Field(
+        gt=0,
+        default=3,
+        description="Minimum inclusive cluster size (poles) retained after clustering.",
+    )
     maximum_distance: float = Field(ge=0, default=0.03)
     continuous_mode: bool = Field(default=True)
 
@@ -977,7 +981,7 @@ class CovSSI(OmaAlgorithm):
         for key in cluster_results:
             cluster_results[key] = cluster_results[key][..., sorting_index]  # type: ignore
 
-        selected = np.nonzero(cluster_results["cluster_dimensions"] > self.minimum_cluster_dimension)[0]
+        selected = np.nonzero(cluster_results["cluster_dimensions"] >= self.minimum_cluster_dimension)[0]
         for key in (
             "frequencies",
             "damping_ratios",
