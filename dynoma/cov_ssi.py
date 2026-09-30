@@ -106,7 +106,7 @@ class CovSSI(OmaAlgorithm):
     order_max: int = Field(gt=0, default=80)
     order_min: int = Field(gt=0, default=40)
     order_steps: int = Field(gt=0, default=2)
-    time_lag: float = Field(ge=0, default=1.2)
+    time_lag: float = Field(gt=0, default=1.2)
     min_mpc: float = Field(ge=0, le=1, default=0.6)
     number_of_fft_points: int = Field(gt=0, default=2**8)
     num_svd_plots: int = Field(gt=0, default=3)
@@ -120,6 +120,55 @@ class CovSSI(OmaAlgorithm):
 
     DECAY_RATE: Final[float] = Field(ge=0, le=1, default=0.75)
 
+    def _normalize_signal_layout(self, signal: SignalT) -> tuple[SignalT, int]:
+        """Validate and return signal as ``(n_samples, n_channels)``.
+
+        Args:
+            signal: Input measurement array.
+
+        Returns:
+            The input signal unchanged and the channel count (``shape[1]``).
+
+        Raises:
+            ModalIdentificationError: If the array is not 2D or ``n_samples < n_channels``.
+        """
+        try:
+            n_samples, n_channels = signal.shape
+        except ValueError as error:
+            raise ModalIdentificationError(
+                f"Input signals must be 2-dimensional, given input with {len(signal.shape)} dimensions"
+            ) from error
+        if n_samples < n_channels:
+            raise ModalIdentificationError(
+                "Input signals must have shape (n_samples, n_channels); "
+                f"got shape {signal.shape} where n_samples < n_channels"
+            )
+        return signal, n_channels
+
+    def _resolve_impulse_channels(self, n_time: int, time_step: float) -> int:
+        """Resolve IRF lag length in samples without mutating ``time_lag``.
+
+        Args:
+            n_time: Number of time samples in the signal.
+            time_step: Sampling period in seconds.
+
+        Returns:
+            Number of impulse-response lag samples (strictly positive).
+
+        Raises:
+            ModalIdentificationError: If the resolved lag has fewer than 1 sample.
+        """
+        impulse_channels = round(2 * self.time_lag / time_step - 1)
+        if impulse_channels > n_time:
+            effective_time_lag = int((n_time + 1) * time_step) / 2
+            impulse_channels = round(2 * effective_time_lag / time_step - 1)
+        if impulse_channels < 1:
+            raise ModalIdentificationError(
+                f"time_lag={self.time_lag} is too small relative to time_step={time_step} "
+                "(or record length) to form a valid impulse response"
+            )
+        return impulse_channels
+
     def _compute_impulse_response_optimized(self, signal: SignalT, time_step: float) -> npt.NDArray[BASE_DTYPE]:
         """Compute the impulse response function of the signal.
 
@@ -127,42 +176,33 @@ class CovSSI(OmaAlgorithm):
 
         Args:
             signal (SignalT): The signal to compute the impulse response function of.
+                Expected layout is ``(n_samples, n_channels)``.
             time_step (float): The time step of the signal.
 
         Returns:
             npt.NDArray[BASE_DTYPE]: The impulse response function of the signal.
         """
-        try:
-            number_of_observations, number_of_channels = signal.shape
-        except ValueError as error:
-            raise ModalIdentificationError(
-                f"Input signals must be 2-dimensional, given input with {len(signal.shape)} dimensions"
-            ) from error
-        if number_of_observations > number_of_channels:
-            signal = signal.T
-            number_of_observations, number_of_channels = signal.shape
+        signal, n_channels = self._normalize_signal_layout(signal)
+        working = signal.T
+        n_time = working.shape[1]
+        impulse_channels = self._resolve_impulse_channels(n_time, time_step)
 
-        impulse_channels = round(2 * self.time_lag / (time_step) - 1)
-        if impulse_channels > number_of_channels:
-            self.time_lag = int((number_of_channels + 1) * time_step) / 2
-            impulse_channels = round(2 * self.time_lag / (time_step) - 1)
-
-        impulse_response_function = np.zeros((number_of_observations, number_of_observations, impulse_channels + 1))
-        start_correlation_index = int(number_of_channels - impulse_channels - 1)
-        end_correlation_index = int(number_of_channels + impulse_channels)
+        impulse_response_function = np.zeros((n_channels, n_channels, impulse_channels + 1))
+        start_correlation_index = int(n_time - impulse_channels - 1)
+        end_correlation_index = int(n_time + impulse_channels)
 
         result_type = np.dtype(BASE_DTYPE)
         axes = [0]
-        s1 = s2 = (number_of_channels,)
+        s1 = s2 = (n_time,)
         shape = [max((s1[i], s2[i])) if i not in axes else s1[i] + s2[i] - 1 for i in range(1)]
         fshape = [sp_fft.next_fast_len(shape[a], True) for a in axes]
 
         fft, ifft = sp_fft.rfftn, sp_fft.irfftn
-        ffts = fft(signal.T - np.mean(signal, axis=1), fshape, axes=axes)
-        reversed_ffts = fft(_reverse_and_conj(signal.T - np.mean(signal, axis=1)), fshape, axes=axes)[:, ::-1]
+        ffts = fft(working.T - np.mean(working, axis=1), fshape, axes=axes)
+        reversed_ffts = fft(_reverse_and_conj(working.T - np.mean(working, axis=1)), fshape, axes=axes)[:, ::-1]
 
-        for index_first_signal in range(number_of_observations):
-            for index_second_signal in range(index_first_signal, number_of_observations):
+        for index_first_signal in range(n_channels):
+            for index_second_signal in range(index_first_signal, n_channels):
                 correlation = ifft(
                     ffts[:, index_first_signal] * reversed_ffts[:, index_second_signal],
                     fshape,
@@ -172,10 +212,10 @@ class CovSSI(OmaAlgorithm):
                 out = _apply_conv_mode(correlation, s1, s2, "full", axes)
                 out = out.astype(result_type)
                 correlation = out[start_correlation_index:end_correlation_index] / (
-                    number_of_channels - abs(np.arange(-impulse_channels, impulse_channels + 1))
+                    n_time - abs(np.arange(-impulse_channels, impulse_channels + 1))
                 )
                 symmetric_correlation = out[::-1][start_correlation_index:end_correlation_index] / (
-                    number_of_channels - abs(np.arange(-impulse_channels, impulse_channels + 1))
+                    n_time - abs(np.arange(-impulse_channels, impulse_channels + 1))
                 )
                 number_of_irf_samples = impulse_channels + 1
                 impulse_response_factor_coefficient = np.exp(
@@ -195,34 +235,25 @@ class CovSSI(OmaAlgorithm):
 
         Args:
             signal (SignalT): The signal to compute the impulse response function of.
+                Expected layout is ``(n_samples, n_channels)``.
             time_step (float): The time step of the signal.
 
         Returns:
             npt.NDArray[BASE_DTYPE]: The impulse response function of the signal.
         """
-        try:
-            number_of_observations, number_of_channels = signal.shape
-        except ValueError as error:
-            raise ModalIdentificationError(
-                f"Input signals must be 2-dimensional, given input with {len(signal.shape)} dimensions"
-            ) from error
+        signal, n_channels = self._normalize_signal_layout(signal)
+        working = signal.T
+        n_time = working.shape[1]
+        impulse_channels = self._resolve_impulse_channels(n_time, time_step)
 
-        if number_of_observations > number_of_channels:
-            signal = signal.T
-            number_of_observations, number_of_channels = signal.shape
-        impulse_channels = round(2 * self.time_lag / (time_step) - 1)
-        if impulse_channels > number_of_channels:
-            self.time_lag = int((number_of_channels + 1) * time_step) / 2
-            impulse_channels = round(2 * self.time_lag / (time_step) - 1)
-
-        impulse_response_function = np.zeros((number_of_observations, number_of_observations, impulse_channels + 1))
-        start_correlation_index = int(number_of_channels - impulse_channels - 1)
-        end_correlation_index = int(number_of_channels + impulse_channels)
-        normalizer = number_of_channels - abs(np.arange(-impulse_channels, impulse_channels + 1))
-        for index_first_signal in range(number_of_observations):
-            for index_second_signal in range(index_first_signal, number_of_observations):
-                first_correlation_input = signal[index_first_signal, :] - np.mean(signal[index_first_signal, :])
-                second_correlation_input = signal[index_second_signal, :] - np.mean(signal[index_second_signal, :])
+        impulse_response_function = np.zeros((n_channels, n_channels, impulse_channels + 1))
+        start_correlation_index = int(n_time - impulse_channels - 1)
+        end_correlation_index = int(n_time + impulse_channels)
+        normalizer = n_time - abs(np.arange(-impulse_channels, impulse_channels + 1))
+        for index_first_signal in range(n_channels):
+            for index_second_signal in range(index_first_signal, n_channels):
+                first_correlation_input = working[index_first_signal, :] - np.mean(working[index_first_signal, :])
+                second_correlation_input = working[index_second_signal, :] - np.mean(working[index_second_signal, :])
                 correlation_vector = scipy.signal.correlate(
                     first_correlation_input,
                     second_correlation_input,
@@ -704,6 +735,9 @@ class CovSSI(OmaAlgorithm):
             stable_damping_ratios.extend(np.array(damping_ratios[pole_index])[ind])
             stable_modes.append(np.array(mode_shapes[pole_index])[:, ind])
 
+        if len(stable_frequencies) == 0:
+            raise ModalIdentificationError("No stable frequencies have been found.")
+
         stable_modes_reorder: list[list[npt.NDArray[OMA_COMPLEX_DTYPE]]] = [
             [stable_modes[index_row][index_col] for index_row in range(len(stable_modes))]
             for index_col in range(len(stable_modes[0]))
@@ -999,9 +1033,9 @@ class CovSSI(OmaAlgorithm):
             raise ModalIdentificationError(
                 "Input signals must be 2-dimensional, given input with different dimension or empty"
             )
+        signal, number_of_channels = self._normalize_signal_layout(signal)
         time_step = 1 / sampling_frequency
         number_of_steps = round((self.order_max - self.order_min) / self.order_steps + 1)
-        _, number_of_channels = signal.shape
         try:
             if optimized:
                 impulse_response = self._compute_impulse_response_optimized(signal, time_step)

@@ -10,7 +10,88 @@ permissions:
   id-token: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Pytest
+        run: uv run pytest
+
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Verify tag matches project.version
+        run: |
+          uv run python - <<'PY'
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          text = Path("pyproject.toml").read_text()
+          match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
+          if match is None:
+              print("Could not find project version in pyproject.toml", file=sys.stderr)
+              sys.exit(1)
+          version = match.group(1)
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected = f"v{version}"
+          if tag != expected:
+              print(
+                  f"Tag {tag!r} does not match project.version {version!r} (expected {expected!r})",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          print(f"Tag {tag} matches project.version {version}")
+          PY
+
   publish:
+    needs: [lint, test, version-check]
     runs-on: ubuntu-latest
     environment: pypi
     steps:

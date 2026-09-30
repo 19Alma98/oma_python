@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import torch
+from pydantic_core import ValidationError
 from pytest_mock import MockerFixture
 
 from dynoma.constants import BASE_DTYPE
@@ -172,7 +173,7 @@ def test_compute_impulse_response_opt_should_raise_error_if_input_not_bi_dimensi
     "input_array, expected_irf",
     [
         (
-            np.array([[1, 3, 5, 7, 9, 11], [0, 2, 4, 6, 8, 10]]),
+            np.array([[1, 0], [3, 2], [5, 4], [7, 6], [9, 8], [11, 10]]),
             np.array(
                 [
                     [
@@ -210,7 +211,7 @@ def test_compute_correlation_should_return_expected_array(input_array, expected_
 
 
 def test_compute_correlation_should_return_expected_array_with_number_of_channels_equal_to_2():
-    input_array = np.array([[1, 3, 5, 7, 9, 11], [0, 2, 4, 6, 8, 10]])
+    input_array = np.array([[1, 0], [3, 2], [5, 4], [7, 6], [9, 8], [11, 10]])
     expected_irf = np.array(
         [
             [
@@ -226,6 +227,54 @@ def test_compute_correlation_should_return_expected_array_with_number_of_channel
     actual_irf = cov_ssi_algorithm._compute_impulse_response(signal=input_array, time_step=0.5)
 
     np.testing.assert_allclose(expected_irf, actual_irf, atol=TOLERANCE)
+
+
+@pytest.mark.parametrize("optimized", [True, False])
+def test_impulse_response_should_reject_sensors_by_time_layout(optimized):
+    algorithm = CovSSI(frequency_max=5, frequency_min=0, number_of_fft_points=2**4, time_lag=1.2)
+    sensors_by_time = np.ones((2, 20), dtype=BASE_DTYPE)
+    method = algorithm._compute_impulse_response_optimized if optimized else algorithm._compute_impulse_response
+    with pytest.raises(ModalIdentificationError, match=r"\(n_samples, n_channels\)"):
+        method(signal=sensors_by_time, time_step=0.5)
+
+
+def test_apply_should_reject_sensors_by_time_layout():
+    algorithm = CovSSI(frequency_max=5, frequency_min=0, number_of_fft_points=2**4, time_lag=1.2)
+    sensors_by_time = np.ones((2, 20), dtype=BASE_DTYPE)
+    with pytest.raises(ModalIdentificationError, match=r"\(n_samples, n_channels\)"):
+        algorithm.apply(signal=sensors_by_time, sampling_frequency=60)
+
+
+def test_apply_should_pass_sensor_count_to_modal_identification(mocker: MockerFixture):
+    algorithm = CovSSI(
+        frequency_max=5,
+        frequency_min=0,
+        number_of_fft_points=2**4,
+        time_lag=0.5,
+        order_min=1,
+        order_max=2,
+        order_steps=1,
+    )
+    n_channels = 3
+    signal = np.ones((30, n_channels), dtype=BASE_DTYPE)
+    mocker.patch.object(
+        CovSSI,
+        "_compute_impulse_response_optimized",
+        return_value=np.ones((n_channels, n_channels, 3), dtype=BASE_DTYPE),
+    )
+    mocker.patch.object(
+        CovSSI,
+        "_build_hankel_matrix",
+        return_value=np.eye(4, dtype=BASE_DTYPE),
+    )
+    modal_mock = mocker.patch.object(
+        CovSSI,
+        "_perform_modal_identification",
+        side_effect=ModalIdentificationError("stop-after-channel-check"),
+    )
+    with pytest.raises(ModalIdentificationError, match="stop-after-channel-check"):
+        algorithm.apply(signal=signal, sampling_frequency=10.0, optimized=True)
+    assert modal_mock.call_args.args[2] == n_channels
 
 
 def test__build_hankel_matrix_should_return_expected_arrays():
@@ -922,6 +971,62 @@ def test_stability_poles_analysis_should_return_empty_dict_when_index_error_is_r
 
 
 @pytest.mark.parametrize(
+    "stability_status, frequencies, damping_ratios, mode_shapes",
+    [
+        ([], [], [], []),
+        (
+            [np.array([0, 2, 3], dtype=np.int32)],
+            [np.array([1.0, 2.0, 3.0], dtype=BASE_DTYPE)],
+            [np.array([0.1, 0.2, 0.3], dtype=BASE_DTYPE)],
+            [np.array([[1.0 + 0j, 2.0 + 0j, 3.0 + 0j], [4.0 + 0j, 5.0 + 0j, 6.0 + 0j]])],
+        ),
+    ],
+)
+def test_stability_pole_filter_should_raise_error_when_no_stable_poles(
+    stability_status, frequencies, damping_ratios, mode_shapes
+):
+    with pytest.raises(ModalIdentificationError, match="No stable frequencies have been found."):
+        cov_ssi_algorithm._stability_pole_filter(
+            stability_status=stability_status,
+            frequencies=frequencies,
+            damping_ratios=damping_ratios,
+            mode_shapes=mode_shapes,
+        )
+
+
+def test_cov_ssi_should_reject_zero_time_lag():
+    with pytest.raises(ValidationError):
+        CovSSI(frequency_max=5, frequency_min=0, number_of_fft_points=2**4, time_lag=0)
+
+
+@pytest.mark.parametrize("optimized", [True, False])
+def test_impulse_response_should_raise_error_when_impulse_channels_invalid(optimized):
+    algorithm = CovSSI(
+        frequency_max=5,
+        frequency_min=0,
+        number_of_fft_points=2**4,
+        time_lag=1e-12,
+    )
+    signal = np.ones((10, 2), dtype=BASE_DTYPE)
+    method = algorithm._compute_impulse_response_optimized if optimized else algorithm._compute_impulse_response
+    with pytest.raises(ModalIdentificationError, match="time_lag"):
+        method(signal=signal, time_step=1.0)
+
+
+def test_impulse_response_should_not_mutate_time_lag_when_clamping():
+    algorithm = CovSSI(
+        frequency_max=5,
+        frequency_min=0,
+        number_of_fft_points=2**4,
+        time_lag=10.0,
+    )
+    original_time_lag = algorithm.time_lag
+    signal = np.ones((4, 2), dtype=BASE_DTYPE)
+    algorithm._compute_impulse_response(signal=signal, time_step=0.5)
+    assert algorithm.time_lag == original_time_lag
+
+
+@pytest.mark.parametrize(
     "input_signals",
     [np.array([]), np.array([0, 1]), np.array([[[1, 2, 3]], [[4, 5, 6]]])],
 )
@@ -936,7 +1041,7 @@ def test_cov_ssi_should_raise_error_if_input_not_well_defined(input_signals):
 @pytest.mark.parametrize("optimized", [True, False])
 def test_cov_ssi_should_raise_error_if_impulse_response_computation_fails(optimized, mocker: MockerFixture):
     algorithm = CovSSI(frequency_max=5, frequency_min=0, number_of_fft_points=2**4)
-    signal = np.array([[0.0, 1.0, 2.0, 3.0], [1.0, 2.0, 3.0, 4.0]])
+    signal = np.array([[0.0, 1.0], [1.0, 2.0], [2.0, 3.0], [3.0, 4.0]])
 
     mocker.patch.object(CovSSI, "_compute_impulse_response", side_effect=ValueError("test"))
     mocker.patch.object(CovSSI, "_compute_impulse_response_optimized", side_effect=ValueError("test"))
