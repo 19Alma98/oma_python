@@ -90,7 +90,11 @@ results, dashboard = cov_ssi.apply(
 
 print(results["frequencies"])
 print(results["damping_ratios"])  # percent scale
-# dashboard is None when continuous_mode=True
+# dashboard is None when continuous_mode=True (default, headless).
+# For SVD / stability dashboard plots, set continuous_mode=False on CovSSI,
+# then: svd_plot_data = cov_ssi.get_svd_plot_data(
+#     signal=signal, sampling_frequency=fs, dashboard_data=dashboard
+# )
 ```
 
 ## Public API
