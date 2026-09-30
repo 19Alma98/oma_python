@@ -177,15 +177,15 @@ class CovSSI(OmaAlgorithm):
                 symmetric_correlation = out[::-1][start_correlation_index:end_correlation_index] / (
                     number_of_channels - abs(np.arange(-impulse_channels, impulse_channels + 1))
                 )
-                correlation_index = round(len(correlation) / 2)
+                number_of_irf_samples = impulse_channels + 1
                 impulse_response_factor_coefficient = np.exp(
-                    -self.DECAY_RATE * time_step * np.arange(0, correlation_index)
+                    -self.DECAY_RATE * time_step * np.arange(0, number_of_irf_samples)
                 )
                 impulse_response_function[index_first_signal, index_second_signal, :] = (
-                    correlation[-correlation_index:] * impulse_response_factor_coefficient
+                    correlation[-number_of_irf_samples:] * impulse_response_factor_coefficient
                 )
                 impulse_response_function[index_second_signal, index_first_signal, :] = (
-                    symmetric_correlation[-correlation_index:] * impulse_response_factor_coefficient
+                    symmetric_correlation[-number_of_irf_samples:] * impulse_response_factor_coefficient
                 )
         del correlation, symmetric_correlation, out, ffts, reversed_ffts
         return impulse_response_function
@@ -233,13 +233,15 @@ class CovSSI(OmaAlgorithm):
                 symmetric_correlation = (
                     correlation_vector[::-1][start_correlation_index:end_correlation_index] / normalizer
                 )
-                correlation_index = round(len(correlation) / 2)
-                impulse_response_coefficient = np.exp(-self.DECAY_RATE * time_step * np.arange(0, correlation_index))
+                number_of_irf_samples = impulse_channels + 1
+                impulse_response_coefficient = np.exp(
+                    -self.DECAY_RATE * time_step * np.arange(0, number_of_irf_samples)
+                )
                 impulse_response_function[index_first_signal, index_second_signal, :] = (
-                    correlation[-correlation_index:] * impulse_response_coefficient
+                    correlation[-number_of_irf_samples:] * impulse_response_coefficient
                 )
                 impulse_response_function[index_second_signal, index_first_signal, :] = (
-                    symmetric_correlation[-correlation_index:] * impulse_response_coefficient
+                    symmetric_correlation[-number_of_irf_samples:] * impulse_response_coefficient
                 )
         del (
             correlation_vector,
