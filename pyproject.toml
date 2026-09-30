@@ -1,14 +1,56 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "oma-python"
 version = "0.1.0"
-description = "Add your description here"
+description = "Operational Modal Analysis (OMA) algorithms for structural dynamics: FDD and Covariance SSI."
 readme = "README.md"
-requires-python = ">=3.10.14"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    { name = "19Alma98" },
+]
+keywords = [
+    "oma",
+    "operational-modal-analysis",
+    "structural-dynamics",
+    "modal-identification",
+    "fdd",
+    "ssi",
+    "vibration",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
 dependencies = [
     "numpy>=2.0.0",
     "pydantic>=2.11.7",
     "scipy>=1.15.3",
     "torch>=2.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/19Alma98/oma_python"
+Repository = "https://github.com/19Alma98/oma_python"
+Issues = "https://github.com/19Alma98/oma_python/issues"
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.12.0",
+    "scipy-stubs>=1.15.3.0",
 ]
 
 [dependency-groups]
@@ -18,6 +60,12 @@ dev = [
     "ruff>=0.12.0",
     "scipy-stubs>=1.15.3.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["dynoma*"]
+
+[tool.setuptools.package-data]
+dynoma = ["py.typed"]
 
 # Default to CPU-only PyTorch wheels (lighter, no CUDA system libs required).
 [tool.uv.sources]

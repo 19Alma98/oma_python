@@ -1,12 +1,12 @@
 version = 1
 revision = 3
-requires-python = ">=3.10.14"
+requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.15' and sys_platform == 'darwin'",
     "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version >= '3.15' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform == 'darwin'",
     "python_full_version < '3.11' and sys_platform != 'darwin'",
     "python_full_version < '3.11' and sys_platform == 'darwin'",
@@ -477,8 +477,8 @@ version = "3.7"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.15' and sys_platform == 'darwin'",
     "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform != 'darwin'",
+    "python_full_version >= '3.15' and sys_platform == 'darwin'",
     "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/dc/76/3af777226b63a5e64a6b36b1ec5855c14e2b94a37096d4760e595fc43511/networkx-3.7.tar.gz", hash = "sha256:fd77a511bd90f39f3d016351345b52cf5319b813bdca01de3f755d3cca62e96a", size = 1866482, upload-time = "2026-09-21T16:45:16.974Z" }
@@ -558,10 +558,10 @@ version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.15' and sys_platform == 'darwin'",
     "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version >= '3.15' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform == 'darwin'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/db/8e12381333aea300890829a0a36bfa738cac95475d88982d538725143fd9/numpy-2.3.0.tar.gz", hash = "sha256:581f87f9e9e9db2cba2141400e160e9dd644ee248788d6f90636eeb8fd9260a6", size = 20382813, upload-time = "2025-06-07T14:54:32.608Z" }
@@ -621,7 +621,7 @@ wheels = [
 [[package]]
 name = "oma-python"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -629,6 +629,15 @@ dependencies = [
     { name = "scipy" },
     { name = "torch", version = "2.14.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "scipy-stubs", version = "1.15.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy-stubs", version = "1.16.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -642,11 +651,16 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.3.1" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.1.1" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.0" },
     { name = "scipy", specifier = ">=1.15.3" },
+    { name = "scipy-stubs", marker = "extra == 'dev'", specifier = ">=1.15.3.0" },
     { name = "torch", specifier = ">=2.0.0", index = "https://download.pytorch.org/whl/cpu" },
 ]
+provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -678,10 +692,10 @@ version = "0.10.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.15' and sys_platform == 'darwin'",
     "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version >= '3.15' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform == 'darwin'",
 ]
 dependencies = [
@@ -952,10 +966,10 @@ version = "1.16.0.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.15' and sys_platform == 'darwin'",
     "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform != 'darwin'",
-    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version >= '3.15' and sys_platform == 'darwin'",
+    "python_full_version >= '3.12' and python_full_version < '3.15' and sys_platform == 'darwin'",
     "python_full_version == '3.11.*' and sys_platform == 'darwin'",
 ]
 dependencies = [
