@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oma-python"
-version = "0.1.0"
+version = "0.1.1"
 description = "Operational Modal Analysis (OMA) algorithms for structural dynamics: FDD and Covariance SSI."
 readme = "README.md"
 license = "MIT"

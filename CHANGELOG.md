@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-30
+
 ### Changed
 
 - CovSSI cluster filtering now keeps clusters with size **greater than or equal to**
@@ -36,5 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 2. Add a new section under this changelog.
 3. Push a matching git tag `vX.Y.Z` to trigger the publish workflow.
 
-[Unreleased]: https://github.com/19Alma98/oma_python/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/19Alma98/oma_python/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/19Alma98/oma_python/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/19Alma98/oma_python/releases/tag/v0.1.0
