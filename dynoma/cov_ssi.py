@@ -1045,9 +1045,7 @@ class CovSSI(OmaAlgorithm):
             )
         signal, number_of_channels = self._normalize_signal_layout(signal)
         time_step = 1 / sampling_frequency
-        number_of_steps = len(
-            np.arange(self.order_min, self.order_max + self.order_steps, self.order_steps)
-        )
+        number_of_steps = len(np.arange(self.order_min, self.order_max + self.order_steps, self.order_steps))
         try:
             if optimized:
                 impulse_response = self._compute_impulse_response_optimized(signal, time_step)

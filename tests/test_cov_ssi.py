@@ -919,9 +919,7 @@ def test_clustering_keeps_clusters_with_size_equal_to_minimum(
         maximum_distance=0.03,
         continuous_mode=False,
     )
-    clustered = algorithm._cluster_modal_parameters(
-        frequencies, damping_ratios, mode_shapes, shuffle=False
-    )
+    clustered = algorithm._cluster_modal_parameters(frequencies, damping_ratios, mode_shapes, shuffle=False)
     assert len(clustered["frequencies"]) == 2
     np.testing.assert_array_equal(clustered["cluster_dimensions"], np.array([2, 2]))
 
