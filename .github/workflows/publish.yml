@@ -65,12 +65,16 @@ jobs:
           enable-cache: true
           python-version: "3.12"
 
-      - name: Verify tag matches project.version
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Verify tag and installed version match project.version
         run: |
           uv run python - <<'PY'
           import os
           import re
           import sys
+          from importlib.metadata import version as installed_version
           from pathlib import Path
 
           text = Path("pyproject.toml").read_text()
@@ -78,16 +82,28 @@ jobs:
           if match is None:
               print("Could not find project version in pyproject.toml", file=sys.stderr)
               sys.exit(1)
-          version = match.group(1)
+          project_version = match.group(1)
           tag = os.environ["GITHUB_REF_NAME"]
-          expected = f"v{version}"
-          if tag != expected:
+          expected_tag = f"v{project_version}"
+          if tag != expected_tag:
               print(
-                  f"Tag {tag!r} does not match project.version {version!r} (expected {expected!r})",
+                  f"Tag {tag!r} does not match project.version {project_version!r} "
+                  f"(expected {expected_tag!r})",
                   file=sys.stderr,
               )
               sys.exit(1)
-          print(f"Tag {tag} matches project.version {version}")
+          installed = installed_version("oma-python")
+          if installed != project_version:
+              print(
+                  f"Installed version {installed!r} does not match "
+                  f"project.version {project_version!r}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          print(
+              f"Tag {tag} and installed version {installed} "
+              f"match project.version {project_version}"
+          )
           PY
 
   publish:
@@ -108,3 +124,5 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true

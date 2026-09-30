@@ -1,0 +1,7 @@
+include LICENSE README.md pyproject.toml CHANGELOG.md
+recursive-include dynoma *
+global-exclude *.py[cod] __pycache__ .DS_Store
+prune tests
+prune docs
+prune .github
+exclude main.py

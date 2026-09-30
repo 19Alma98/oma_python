@@ -115,6 +115,10 @@ Signal layout is `(n_samples, n_channels)`.
 
 CPU-only PyTorch wheels are preferred for development (`uv` is configured for the official CPU index).
 
+## Changelog
+
+See [CHANGELOG.md](https://github.com/19Alma98/oma_python/blob/main/CHANGELOG.md).
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/19Alma98/oma_python/blob/main/LICENSE).
