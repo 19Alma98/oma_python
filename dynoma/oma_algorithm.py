@@ -197,9 +197,8 @@ class OmaAlgorithm:
             )
         number_of_observations, _ = signal.shape
         window_length = self._find_window_length(number_of_observations, self.number_of_fft_points)
-        frequencies = (np.arange(0, int(window_length / 2 + 1) - 1) * (sampling_frequency / window_length)).astype(
-            BASE_DTYPE
-        )
+        n_freq_bins = window_length // 2 + 1
+        frequencies = (np.arange(n_freq_bins) * (sampling_frequency / window_length)).astype(BASE_DTYPE)
         try:
             if optimize_csd_computation:
                 csd_matrix = self._get_csd_cross_signal_optimized(signal, sampling_frequency, window_length)

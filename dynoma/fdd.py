@@ -147,8 +147,9 @@ class FDD(OmaAlgorithm):
             eigenvalues_matrix = self.eigenvalues_matrix
         peaks_indexes = self._find_peak_over_specific_area(peaks_range, eigenvalues_matrix[0, :], frequencies)
         complex_modes = np.vstack([np.conjugate(eigenvectors_matrix[:, 0, peak]) for peak in peaks_indexes])
-        peaks_frequency = np.sort(frequencies[peaks_indexes])
-        selected_complex_modes = complex_modes[np.argsort(peaks_frequency), :]
+        order = np.argsort(frequencies[peaks_indexes])
+        peaks_frequency = frequencies[peaks_indexes][order]
+        selected_complex_modes = complex_modes[order, :]
         selected_real_modes = np.array(
             [complex_mode_to_real_mode(complex_mode) for complex_mode in selected_complex_modes],
             dtype=BASE_DTYPE,
