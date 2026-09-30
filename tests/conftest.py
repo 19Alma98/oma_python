@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+
 @pytest.fixture(scope="session")
 def cov_ssi_not_clustered_modal_parameters():
     frequencies = np.array([4.03, 5.17, 20.76, 20.04, 18.30])
@@ -68,6 +69,7 @@ def cov_ssi_not_clustered_modal_parameters():
     orders = np.array([40, 40, 60, 80, 80])
 
     return frequencies, damping_ratios, mode_shapes, orders
+
 
 @pytest.fixture
 def oma_stability_check_inputs():
@@ -143,6 +145,7 @@ def oma_stability_check_inputs():
     )
 
     return freq, damping, mode_shape
+
 
 @pytest.fixture
 def oma_poles_analysis_inputs():
@@ -344,6 +347,7 @@ def oma_poles_analysis_inputs():
     )
 
     return input_freq, input_damping_ratios, input_modes
+
 
 @pytest.fixture
 def oma_clustering_analysis_inputs():

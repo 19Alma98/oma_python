@@ -51,9 +51,7 @@ def test_compute_signal_svd_should_raise_error_if_parameters_not_well_defined(
 
 def test_compute_signal_svd_should_raise_error_if_input_signal_is_not_bi_dimensional():
     signals = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])
-    oma_algorithm = OmaAlgorithm(
-        frequency_max=10, frequency_min=5, number_of_fft_points=2**4, num_svd_plots=2
-    )
+    oma_algorithm = OmaAlgorithm(frequency_max=10, frequency_min=5, number_of_fft_points=2**4, num_svd_plots=2)
     with pytest.raises(ModalIdentificationError, match="Input data must be a bi-dimensional non-empty array"):
         oma_algorithm.compute_signal_svd(signal=signals, sampling_frequency=20)
 
@@ -112,7 +110,6 @@ def test_compute_signal_svd_should_raise_error_if_no_valid_frequencies_are_found
     [True, False],
 )
 def test_compute_signal_svd_should_return_expected_results(optimize_csd_computation):
-    """Happy path: dynoma uses full CSD bin count (incl. Nyquist); Prisma omits the top bin."""
     input_array = np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])
 
     expected_frequencies = np.array([0, 2.5, 5.0])

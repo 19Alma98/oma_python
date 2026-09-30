@@ -20,7 +20,6 @@ def fdd() -> FDD:
 
 
 def test_fdd_find_peak_over_specific_area_should_raise_error_if_no_frequencies_found(fdd: FDD):
-    """Dynoma raises invalid-range when area exceeds frequency grid (Prisma expected no-peaks)."""
     user_selected_areas = [[5, 10]]
     signal = np.array([44.53, 43.99, 45.99, 40.16, 37.36, 34.22, 31.29, 29.69, 32.22, 44.37, 35.22])
     frequencies = np.array([3.80, 3.83, 3.86, 3.89, 3.92, 3.95, 3.98, 4.01, 4.04, 4.07, 4.10])

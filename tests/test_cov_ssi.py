@@ -4,8 +4,8 @@ import torch
 from pytest_mock import MockerFixture
 
 from dynoma.constants import BASE_DTYPE
-from dynoma.exceptions import ModalIdentificationError
 from dynoma.cov_ssi import CovSSI
+from dynoma.exceptions import ModalIdentificationError
 from dynoma.utils import compute_mac_value
 
 TOLERANCE = 1e-3
@@ -210,7 +210,6 @@ def test_compute_correlation_should_return_expected_array(input_array, expected_
 
 
 def test_compute_correlation_should_return_expected_array_with_number_of_channels_equal_to_2():
-    """Same IRF golden policy as parametrized correlation test."""
     input_array = np.array([[1, 3, 5, 7, 9, 11], [0, 2, 4, 6, 8, 10]])
     expected_irf = np.array(
         [
@@ -263,7 +262,6 @@ def test_modal_identification_should_raise_error_if_lstsq_raises_error(
 
 
 def test_modal_identification_should_return_expected_arrays():
-    """Golden arrays for torch lstsq/eigen path; sensitive to pinned torch/BLAS (atol=TOLERANCE)."""
     u = torch.tensor(
         [
             [-0.33075111, 0.86229048, -0.38348249],
@@ -936,9 +934,7 @@ def test_cov_ssi_should_raise_error_if_input_not_well_defined(input_signals):
 
 
 @pytest.mark.parametrize("optimized", [True, False])
-def test_cov_ssi_should_raise_error_if_impulse_response_computation_fails(
-    optimized, mocker: MockerFixture
-):
+def test_cov_ssi_should_raise_error_if_impulse_response_computation_fails(optimized, mocker: MockerFixture):
     algorithm = CovSSI(frequency_max=5, frequency_min=0, number_of_fft_points=2**4)
     signal = np.array([[0.0, 1.0, 2.0, 3.0], [1.0, 2.0, 3.0, 4.0]])
 
