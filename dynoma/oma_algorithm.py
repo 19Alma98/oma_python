@@ -179,14 +179,16 @@ class OmaAlgorithm:
         Args:
             signal (SignalT): The input signal.
             sampling_frequency (float): The sampling frequency of the signal.
-            frequency_max (float): The maximum frequency.
-            frequency_min (float): The minimum frequency.
-            number_of_fft_points (int): The number of FFT points.
-            num_svd_plots (int): The number of SVD lines we want to plot.
             optimize_csd_computation (bool, optional): Whether to use the optimized CSD computation. Defaults to True.
 
         Returns:
-            tuple[npt.NDArray[BASE_DTYPE], npt.NDArray[OMA_COMPLEX_DTYPE], npt.NDArray[OMA_COMPLEX_DTYPE]]: The frequencies, the eigenvalues and the eigenvectors.
+            tuple[npt.NDArray[BASE_DTYPE], npt.NDArray[BASE_DTYPE], npt.NDArray[OMA_COMPLEX_DTYPE]]:
+                Band-limited frequencies, singular values in dB (`10*log10`), and complex singular vectors.
+
+        Notes:
+            Exact zero singular values are replaced with ``1`` before the log transform so they
+            appear as ``0`` dB instead of ``-inf``. This is intentional and affects FDD peak
+            picking and SVD plots on rank-deficient bins.
         """
         if (len(signal.shape) != 2) or (signal.size == 0):
             raise ModalIdentificationError("Input data must be a bi-dimensional non-empty array")
