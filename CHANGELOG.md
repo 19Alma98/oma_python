@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `get_svd_plot_data` now raises `ModalIdentificationError` when `dashboard_data` is
   `None` (typical when `continuous_mode=True`), instead of failing with a TypeError.
+- CovSSI `number_of_steps` now follows `len(np.arange(order_min, order_max + order_steps,
+  order_steps))` instead of `round((order_max - order_min) / order_steps + 1)`, which
+  under-counted for some order grids and caused `IndexError` in modal identification.
 
 ## [0.1.0] - 2026-09-30
 

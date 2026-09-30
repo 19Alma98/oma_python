@@ -333,13 +333,16 @@ class CovSSI(OmaAlgorithm):
             s (torch.Tensor[TORCH_COMPLEX_DTYPE]): The singular values of the Hankel matrix.
             number_of_channels (int): The number of channels of the signal.
             time_step (float): The time step of the signal.
-            number_of_steps (int): The number of steps to be considered.
+            number_of_steps (int): Hint from the caller; the effective count is
+                ``len(np.arange(order_min, order_max + order_steps, order_steps))``.
 
         Returns:
             npt.NDArray[BASE_DTYPE]: The frequencies of the modes.
             npt.NDArray[BASE_DTYPE]: The damping ratios of the modes.
             npt.NDArray[OMA_COMPLEX_DTYPE]: The mode shapes of the modes.
         """
+        steps = np.arange(self.order_min, self.order_max + self.order_steps, self.order_steps)
+        number_of_steps = len(steps)
         frequencies = np.zeros((self.order_max, number_of_steps))
         damping_ratios = np.zeros((self.order_max, number_of_steps))
         mode_shapes = np.zeros(
@@ -347,7 +350,6 @@ class CovSSI(OmaAlgorithm):
             dtype=OMA_COMPLEX_DTYPE,
         )
 
-        steps = np.arange(self.order_min, self.order_max + self.order_steps, self.order_steps)
         for index, step in enumerate(steps):
             if step >= len(s):
                 observability_matrix = torch.matmul(u, torch.sqrt(s.diag()))
@@ -1043,7 +1045,9 @@ class CovSSI(OmaAlgorithm):
             )
         signal, number_of_channels = self._normalize_signal_layout(signal)
         time_step = 1 / sampling_frequency
-        number_of_steps = round((self.order_max - self.order_min) / self.order_steps + 1)
+        number_of_steps = len(
+            np.arange(self.order_min, self.order_max + self.order_steps, self.order_steps)
+        )
         try:
             if optimized:
                 impulse_response = self._compute_impulse_response_optimized(signal, time_step)

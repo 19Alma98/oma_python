@@ -277,6 +277,43 @@ def test_apply_should_pass_sensor_count_to_modal_identification(mocker: MockerFi
     assert modal_mock.call_args.args[2] == n_channels
 
 
+def test_apply_should_pass_arange_based_number_of_steps(mocker: MockerFixture):
+    order_min, order_max, order_steps = 40, 70, 20
+    algorithm = CovSSI(
+        frequency_max=5,
+        frequency_min=0,
+        number_of_fft_points=2**4,
+        time_lag=0.5,
+        order_min=order_min,
+        order_max=order_max,
+        order_steps=order_steps,
+    )
+    n_channels = 2
+    signal = np.ones((30, n_channels), dtype=BASE_DTYPE)
+    mocker.patch.object(
+        CovSSI,
+        "_compute_impulse_response_optimized",
+        return_value=np.ones((n_channels, n_channels, 3), dtype=BASE_DTYPE),
+    )
+    mocker.patch.object(
+        CovSSI,
+        "_build_hankel_matrix",
+        return_value=np.eye(4, dtype=BASE_DTYPE),
+    )
+    modal_mock = mocker.patch.object(
+        CovSSI,
+        "_perform_modal_identification",
+        side_effect=ModalIdentificationError("stop-after-step-count-check"),
+    )
+    expected_steps = len(np.arange(order_min, order_max + order_steps, order_steps))
+    assert expected_steps == 3
+    assert round((order_max - order_min) / order_steps + 1) == 2
+
+    with pytest.raises(ModalIdentificationError, match="stop-after-step-count-check"):
+        algorithm.apply(signal=signal, sampling_frequency=10.0, optimized=True)
+    assert modal_mock.call_args.args[4] == expected_steps
+
+
 def test__build_hankel_matrix_should_return_expected_arrays():
     input_array = np.array([[[1, 3, 5], [7, 9, 11]], [[0, 2, 4], [6, 8, 10]]])
     hankel_matrix = cov_ssi_algorithm._build_hankel_matrix(input_array)
