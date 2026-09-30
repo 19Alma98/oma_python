@@ -7,7 +7,9 @@ from dynoma.constants import BASE_DTYPE, COMPLEX_DTYPE, OMA_COMPLEX_DTYPE
 from dynoma.exceptions import ModalIdentificationError
 
 
-def maximum_correlation_rotation(input_vector: npt.NDArray[OMA_COMPLEX_DTYPE]) -> npt.NDArray[OMA_COMPLEX_DTYPE]:
+def maximum_correlation_rotation(
+    input_vector: npt.NDArray[OMA_COMPLEX_DTYPE],
+) -> npt.NDArray[OMA_COMPLEX_DTYPE]:
     """Return input data rotated with respect to the maximum correlation line.
 
     Args:
@@ -26,7 +28,10 @@ def maximum_correlation_rotation(input_vector: npt.NDArray[OMA_COMPLEX_DTYPE]) -
 
     theta_angle = -np.arctan(intercept)
     rotation_matrix = np.array(
-        [[np.cos(theta_angle), -np.sin(theta_angle)], [np.sin(theta_angle), np.cos(theta_angle)]]
+        [
+            [np.cos(theta_angle), -np.sin(theta_angle)],
+            [np.sin(theta_angle), np.cos(theta_angle)],
+        ]
     )
 
     rotated = np.matmul(rotation_matrix, np.vstack((input_vector.real, input_vector.imag)))
@@ -52,7 +57,9 @@ def find_angle_sign(angle: npt.NDArray[np.floating[Any]]) -> npt.NDArray[np.int3
     )
 
 
-def complex_mode_to_real_mode(complex_mode: npt.NDArray[OMA_COMPLEX_DTYPE]) -> npt.NDArray[BASE_DTYPE]:
+def complex_mode_to_real_mode(
+    complex_mode: npt.NDArray[OMA_COMPLEX_DTYPE],
+) -> npt.NDArray[BASE_DTYPE]:
     """Return the real valued mode shape starting from the complex one.
 
     Args:
@@ -74,7 +81,9 @@ def complex_mode_to_real_mode(complex_mode: npt.NDArray[OMA_COMPLEX_DTYPE]) -> n
     return np.real(magnitudes * signs)
 
 
-def modal_phase_collinearity(mode_shapes: npt.NDArray[OMA_COMPLEX_DTYPE]) -> npt.NDArray[BASE_DTYPE]:
+def modal_phase_collinearity(
+    mode_shapes: npt.NDArray[OMA_COMPLEX_DTYPE],
+) -> npt.NDArray[BASE_DTYPE]:
     """Return the modal phase collinearity of a mode shape.
 
     Args:
@@ -132,7 +141,8 @@ def modal_phase_collinearity(mode_shapes: npt.NDArray[OMA_COMPLEX_DTYPE]) -> npt
 
 
 def compute_mac_value(
-    mode_shape_1: npt.NDArray[OMA_COMPLEX_DTYPE], mode_shape_2: npt.NDArray[OMA_COMPLEX_DTYPE]
+    mode_shape_1: npt.NDArray[OMA_COMPLEX_DTYPE],
+    mode_shape_2: npt.NDArray[OMA_COMPLEX_DTYPE],
 ) -> float:
     """Return the modal assurance criterion value between two mode shapes.
 

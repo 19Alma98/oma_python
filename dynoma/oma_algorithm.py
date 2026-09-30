@@ -3,20 +3,19 @@ from typing import ClassVar, Final, Literal
 import numpy as np
 import numpy.typing as npt
 import torch
-from django.utils.translation import gettext_lazy
 from pydantic import Field, model_validator
 from pydantic.dataclasses import dataclass
 from scipy.signal import csd
 from scipy.signal._spectral_py import _fft_helper  # type:ignore
 from scipy.signal.windows._windows import get_window
 
-from core.algorithms.coherence_analysis.typing import ModeT
-from core.algorithms.coherence_analysis.utils import compute_pxy, handle_detrend_method, prepare_arguments
-from core.algorithms.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE, TORCH_COMPLEX_DTYPE
-from core.algorithms.exceptions import ModalIdentificationError
-from core.algorithms.typing import SignalT
+from dynoma.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE, TORCH_COMPLEX_DTYPE, SignalT
+from dynoma.exceptions import ModalIdentificationError
+from dynoma.spectral import compute_pxy, handle_detrend_method, prepare_arguments
+from dynoma.typing import ModeT
 
 CSD_COMPUTATION_AXIS: Final[int] = 0
+WindowName = Literal["hann", "hamming"]
 
 
 @dataclass(slots=True, kw_only=True)
@@ -34,16 +33,14 @@ class OmaAlgorithm:
     number_of_fft_points: int = Field(gt=0)
     num_svd_plots: int = Field(gt=0)
 
-    WINDOW: ClassVar[Final[Literal["hann", "hamming"]]] = "hamming"
+    WINDOW: ClassVar[WindowName] = "hamming"
 
     @model_validator(mode="after")
     def validate_frequency_range(self) -> "OmaAlgorithm":
         """Validate the frequency range is valid."""
         if self.frequency_min > self.frequency_max:
             raise ModalIdentificationError(
-                gettext_lazy(
-                    "Frequency minimum must be less than frequency maximum: given {freq_min}, {freq_max}"
-                ).format(freq_min=self.frequency_min, freq_max=self.frequency_max)
+                f"Frequency minimum must be less than frequency maximum: given {self.frequency_min}, {self.frequency_max}"
             )
         return self
 
@@ -192,12 +189,11 @@ class OmaAlgorithm:
             tuple[npt.NDArray[BASE_DTYPE], npt.NDArray[OMA_COMPLEX_DTYPE], npt.NDArray[OMA_COMPLEX_DTYPE]]: The frequencies, the eigenvalues and the eigenvectors.
         """
         if (len(signal.shape) != 2) or (signal.size == 0):
-            raise ModalIdentificationError(gettext_lazy("Input data must be a bi-dimensional non-empty array"))
+            raise ModalIdentificationError("Input data must be a bi-dimensional non-empty array")
         if self.frequency_max > sampling_frequency / 2:
             raise ModalIdentificationError(
-                gettext_lazy(
-                    "Frequency maximum must be less than or equal to half of the sampling frequency: given {freq_max}, {sampling_frequency}"
-                ).format(freq_max=self.frequency_max, sampling_frequency=sampling_frequency)
+                "Frequency maximum must be less than or equal to half of the sampling frequency: "
+                f"given {self.frequency_max}, {sampling_frequency}"
             )
         number_of_observations, _ = signal.shape
         window_length = self._find_window_length(number_of_observations, self.number_of_fft_points)
@@ -210,21 +206,17 @@ class OmaAlgorithm:
             else:
                 csd_matrix = self._get_csd_cross_signal(signal, sampling_frequency, window_length)
         except Exception as error:
-            raise ModalIdentificationError(
-                gettext_lazy("Cross spectral decomposition failed: {error}").format(error=error)
-            ) from error
+            raise ModalIdentificationError(f"Cross spectral decomposition failed: {error}") from error
 
         csd_tensor = torch.tensor(csd_matrix.transpose(2, 0, 1), dtype=TORCH_COMPLEX_DTYPE)
         try:
             u_tensor, s_tensor, _ = torch.linalg.svd(csd_tensor)
         except Exception as error:
-            raise ModalIdentificationError(
-                gettext_lazy("Singular value decomposition failed: {error}").format(error=error)
-            ) from error
+            raise ModalIdentificationError(f"Singular value decomposition failed: {error}") from error
 
         valid_indices = np.nonzero((frequencies >= self.frequency_min) & (frequencies <= self.frequency_max))[0]
         if valid_indices.size == 0:
-            raise ModalIdentificationError(gettext_lazy("No frequencies found for the given frequency range"))
+            raise ModalIdentificationError("No frequencies found for the given frequency range")
 
         eigenvectors_matrix = (
             u_tensor.transpose(1, 2).numpy().T[:, :, valid_indices[0] : valid_indices[-1] + 1]

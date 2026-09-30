@@ -1,9 +1,12 @@
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 import numpy as np
 import numpy.typing as npt
 
 from dynoma.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE
+
+ModeT = Literal["psd", "stft"]
+DetrendT = Literal["linear", "constant"] | None
 
 
 class FDDResults(TypedDict):

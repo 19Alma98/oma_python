@@ -11,6 +11,7 @@ TORCH_COMPLEX_DTYPE = torch.complex64
 
 SignalT = npt.NDArray[BASE_DTYPE]
 
+
 @unique
 class NFFT(IntEnum):
     """Number of points in the FastFourier transform."""

@@ -1,16 +1,14 @@
 import numpy as np
 import numpy.typing as npt
-from django.utils.translation import gettext_lazy
 from pydantic import ConfigDict, Field
 from pydantic.dataclasses import dataclass
 from scipy.signal import find_peaks
 
-from core.algorithms.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE
-from core.algorithms.exceptions import ModalIdentificationError
-from core.algorithms.modal_identification.oma_algorithm import OmaAlgorithm
-from core.algorithms.modal_identification.typing import FDDResults
-from core.algorithms.modal_identification.utils import complex_mode_to_real_mode
-from core.algorithms.typing import SignalT
+from dynoma.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE, SignalT
+from dynoma.exceptions import ModalIdentificationError
+from dynoma.oma_algorithm import OmaAlgorithm
+from dynoma.typing import FDDResults
+from dynoma.utils import complex_mode_to_real_mode
 
 
 @dataclass(slots=True, kw_only=True, config=ConfigDict(arbitrary_types_allowed=True))
@@ -74,11 +72,11 @@ class FDD(OmaAlgorithm):
         """
         if len(area) != 2:
             raise ModalIdentificationError(
-                gettext_lazy("Selected frequency range must be a list of two elements: min and max x values.")
+                "Selected frequency range must be a list of two elements: min and max x values."
             )
         if area[0] > area[1]:
             raise ModalIdentificationError(
-                gettext_lazy("Selected frequency range in FDD is invalid: first entry must be less than second entry.")
+                "Selected frequency range in FDD is invalid: first entry must be less than second entry."
             )
 
     def _find_peak_over_specific_area(
@@ -104,15 +102,15 @@ class FDD(OmaAlgorithm):
                 start_idx = np.nonzero(frequencies >= area[0])[0][0]
                 end_idx = np.nonzero(frequencies >= area[1])[0][0]
             except IndexError as error:
-                raise ModalIdentificationError(gettext_lazy("Selected frequency range in FDD is invalid.")) from error
+                raise ModalIdentificationError("Selected frequency range in FDD is invalid.") from error
 
             sample_signal = signal_eigenvalues[start_idx:end_idx]
             try:
                 peaks, _ = find_peaks(sample_signal)
             except ValueError as error:
-                raise ModalIdentificationError(gettext_lazy("Peak detection in FDD failed.")) from error
+                raise ModalIdentificationError("Peak detection in FDD failed.") from error
             if not len(peaks):
-                raise ModalIdentificationError(gettext_lazy("No peaks found in the selected area for FDD algorithm."))
+                raise ModalIdentificationError("No peaks found in the selected area for FDD algorithm.")
 
             peak_values = sample_signal[peaks]
             peak_frequencies = frequencies[start_idx:end_idx][peaks][np.argmax(peak_values)]
@@ -120,7 +118,13 @@ class FDD(OmaAlgorithm):
 
         return np.sort(np.array(peak_indices, dtype=np.int32))
 
-    def apply(self, *, signal: SignalT, sampling_frequency: float, peaks_range: list[list[float]]):
+    def apply(
+        self,
+        *,
+        signal: SignalT,
+        sampling_frequency: float,
+        peaks_range: list[list[float]],
+    ):
         """Return the modal parameters coming from FDD analysis.
 
         Args:
@@ -132,7 +136,7 @@ class FDD(OmaAlgorithm):
             FDDResults: The modal parameters coming from FDD analysis.
         """
         if not len(peaks_range):
-            raise ModalIdentificationError(gettext_lazy("User's selected peaks not available"))
+            raise ModalIdentificationError("User's selected peaks not available")
         if self.frequencies is None or self.eigenvalues_matrix is None or self.eigenvectors_matrix is None:
             frequencies, eigenvalues_matrix, eigenvectors_matrix = self.compute_signal_svd(
                 signal=signal, sampling_frequency=sampling_frequency
@@ -146,7 +150,8 @@ class FDD(OmaAlgorithm):
         peaks_frequency = np.sort(frequencies[peaks_indexes])
         selected_complex_modes = complex_modes[np.argsort(peaks_frequency), :]
         selected_real_modes = np.array(
-            [complex_mode_to_real_mode(complex_mode) for complex_mode in selected_complex_modes], dtype=BASE_DTYPE
+            [complex_mode_to_real_mode(complex_mode) for complex_mode in selected_complex_modes],
+            dtype=BASE_DTYPE,
         ).T
         return FDDResults(
             frequencies=peaks_frequency,

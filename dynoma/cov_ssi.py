@@ -9,9 +9,9 @@ from pydantic.dataclasses import dataclass
 from scipy import fft as sp_fft
 from scipy.signal._signaltools import _apply_conv_mode, _reverse_and_conj  # type:ignore
 
-from dynoma.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE, TORCH_COMPLEX_DTYPE
+from dynoma.constants import BASE_DTYPE, OMA_COMPLEX_DTYPE, TORCH_COMPLEX_DTYPE, SignalT
 from dynoma.exceptions import ModalIdentificationError
-from dynoma.fdd import OmaAlgorithm
+from dynoma.oma_algorithm import OmaAlgorithm
 from dynoma.typing import (
     CovSSIDashboardData,
     CovSSIResults,
@@ -26,6 +26,7 @@ from dynoma.utils import (
     maximum_correlation_rotation,
     modal_phase_collinearity,
 )
+
 
 @dataclass(slots=True, kw_only=True)
 class CovSSI(OmaAlgorithm):
@@ -163,7 +164,9 @@ class CovSSI(OmaAlgorithm):
         for index_first_signal in range(number_of_observations):
             for index_second_signal in range(index_first_signal, number_of_observations):
                 correlation = ifft(
-                    ffts[:, index_first_signal] * reversed_ffts[:, index_second_signal], fshape, axes=axes
+                    ffts[:, index_first_signal] * reversed_ffts[:, index_second_signal],
+                    fshape,
+                    axes=axes,
                 )
                 correlation = correlation[tuple([slice(sz) for sz in shape])]
                 out = _apply_conv_mode(correlation, s1, s2, "full", axes)
@@ -263,8 +266,14 @@ class CovSSI(OmaAlgorithm):
 
         for i in range(hankel_number_of_rows):
             for j in range(i, hankel_number_of_rows):
-                r_start, r_end = i * number_of_observations, (i + 1) * number_of_observations
-                c_start, c_end = j * number_of_observations, (j + 1) * number_of_observations
+                r_start, r_end = (
+                    i * number_of_observations,
+                    (i + 1) * number_of_observations,
+                )
+                c_start, c_end = (
+                    j * number_of_observations,
+                    (j + 1) * number_of_observations,
+                )
                 hankel_matrix[r_start:r_end, c_start:c_end] = impulse_response[:, :, hankel_number_of_rows + i - j]
                 if i != j:
                     hankel_matrix[c_start:c_end, r_start:r_end] = impulse_response[:, :, hankel_number_of_rows + j - i]
@@ -294,7 +303,10 @@ class CovSSI(OmaAlgorithm):
         """
         frequencies = np.zeros((self.order_max, number_of_steps))
         damping_ratios = np.zeros((self.order_max, number_of_steps))
-        mode_shapes = np.zeros((number_of_channels, self.order_max, number_of_steps), dtype=OMA_COMPLEX_DTYPE)
+        mode_shapes = np.zeros(
+            (number_of_channels, self.order_max, number_of_steps),
+            dtype=OMA_COMPLEX_DTYPE,
+        )
 
         steps = np.arange(self.order_min, self.order_max + self.order_steps, self.order_steps)
         for index, step in enumerate(steps):
@@ -332,7 +344,13 @@ class CovSSI(OmaAlgorithm):
             damping_ratios[: len(step_frequencies), index] = step_damping_ratios
             mode_shapes[:, : len(step_frequencies), index] = step_mode_shapes
             del step_frequencies, step_mode_shapes, step_damping_ratios
-        del modal_frequency_matrix, frequency_poles, frequency_eigenvalues, frequency_eigenvectors, observability_matrix
+        del (
+            modal_frequency_matrix,
+            frequency_poles,
+            frequency_eigenvalues,
+            frequency_eigenvectors,
+            observability_matrix,
+        )
         return frequencies, damping_ratios, mode_shapes
 
     def _remove_zero_frequency_modes(
@@ -375,11 +393,17 @@ class CovSSI(OmaAlgorithm):
                     )
                     if (frequency_delta < 0.001) & (damping_delta < 0.001) & (1 - mac_value < 0.001):
                         frequencies[index, relative_step_index] = np.mean(
-                            [frequencies[index + 1, relative_step_index], frequencies[index, relative_step_index]]
+                            [
+                                frequencies[index + 1, relative_step_index],
+                                frequencies[index, relative_step_index],
+                            ]
                         )
                         frequencies[index + 1, relative_step_index] = 0
                         damping_ratios[index, relative_step_index] = np.mean(
-                            [damping_ratios[index + 1, relative_step_index], damping_ratios[index, relative_step_index]]
+                            [
+                                damping_ratios[index + 1, relative_step_index],
+                                damping_ratios[index, relative_step_index],
+                            ]
                         )
                         damping_ratios[index + 1, relative_step_index] = 0
         for step in steps:
@@ -478,7 +502,9 @@ class CovSSI(OmaAlgorithm):
         del temp_mode_shapes_dashboard, mode_shapes_dashboard
 
         return ModalIdentification(
-            frequencies=final_frequencies, damping_ratios=final_damping_ratios, mode_shapes=final_modes
+            frequencies=final_frequencies,
+            damping_ratios=final_damping_ratios,
+            mode_shapes=final_modes,
         ), ModalDashboardData(
             frequencies=np.array(frequencies_dashboard),
             damping_ratios=np.array(damping_ratios_dashboard),
@@ -487,7 +513,10 @@ class CovSSI(OmaAlgorithm):
         )
 
     def _get_stability_pole_status(
-        self, frequency_stability: int, damping_stability: int, mode_shape_stability: int
+        self,
+        frequency_stability: int,
+        damping_stability: int,
+        mode_shape_stability: int,
     ) -> int:
         """Get the stability status of the pole based on the frequency, damping ratio and mode shape stability.
 
@@ -550,7 +579,8 @@ class CovSSI(OmaAlgorithm):
                 )
                 damping_stability = int(np.abs(1 - first_damping / second_damping) < self.damping_noise_threshold)
                 mac_value = compute_mac_value(
-                    np.array(first_mode, dtype=OMA_COMPLEX_DTYPE), np.array(second_mode, dtype=OMA_COMPLEX_DTYPE)
+                    np.array(first_mode, dtype=OMA_COMPLEX_DTYPE),
+                    np.array(second_mode, dtype=OMA_COMPLEX_DTYPE),
                 )
                 mac_stability = int(mac_value > (1 - self.mac_noise_threshold))
                 stability = self._get_stability_pole_status(frequency_stability, damping_stability, mac_stability)
@@ -684,7 +714,11 @@ class CovSSI(OmaAlgorithm):
             ]
         ).reshape(-1, len(stable_frequencies))
         del stable_modes_reorder
-        return np.array(stable_frequencies), np.array(stable_damping_ratios), final_stable_modes
+        return (
+            np.array(stable_frequencies),
+            np.array(stable_damping_ratios),
+            final_stable_modes,
+        )
 
     def _initialize_cluster(
         self,
@@ -809,7 +843,10 @@ class CovSSI(OmaAlgorithm):
 
         for i in range(num_modes):
             freq, damp = clusters["freq"][i], clusters["damp"][i]
-            mode_real, mode_complex = clusters["mode_real"][i], clusters["mode_complex"][i]
+            mode_real, mode_complex = (
+                clusters["mode_real"][i],
+                clusters["mode_complex"][i],
+            )
 
             freq_avg[i] = np.mean(freq)
             freq_std[i] = np.std(freq, ddof=1) if len(freq) > 1 else 0.0
@@ -853,7 +890,12 @@ class CovSSI(OmaAlgorithm):
         num = len(frequencies)
         permute = np.random.Generator(np.random.PCG64(10)).permutation(num)
 
-        clusters: dict[str, dict[int, npt.NDArray]] = {"freq": {}, "damp": {}, "mode_real": {}, "mode_complex": {}}
+        clusters: dict[str, dict[int, npt.NDArray]] = {
+            "freq": {},
+            "damp": {},
+            "mode_real": {},
+            "mode_complex": {},
+        }
 
         for raw_idx in range(num):
             idx = permute[raw_idx] if shuffle else raw_idx
@@ -883,7 +925,14 @@ class CovSSI(OmaAlgorithm):
                     )
             else:
                 new_id = max(clusters["freq"].keys()) + 1
-                self._initialize_cluster(new_id, start_freq, start_damp, start_mode, start_mode_complex, clusters)
+                self._initialize_cluster(
+                    new_id,
+                    start_freq,
+                    start_damp,
+                    start_mode,
+                    start_mode_complex,
+                    clusters,
+                )
 
         cluster_results = self._aggregate_cluster_data(clusters, mode_shapes.shape[0])
         del clusters, start_freq, start_damp, start_mode, start_mode_complex
@@ -905,10 +954,14 @@ class CovSSI(OmaAlgorithm):
             cluster_results[key] = cluster_results[key][..., selected]  # type: ignore
 
         freq_bounds = self._compute_confidence_bounds(
-            cluster_results["frequencies"], cluster_results["frequency_bounds"], cluster_results["cluster_dimensions"]
+            cluster_results["frequencies"],
+            cluster_results["frequency_bounds"],
+            cluster_results["cluster_dimensions"],
         )
         damp_bounds = self._compute_confidence_bounds(
-            cluster_results["damping_ratios"], cluster_results["damping_bounds"], cluster_results["cluster_dimensions"]
+            cluster_results["damping_ratios"],
+            cluster_results["damping_bounds"],
+            cluster_results["cluster_dimensions"],
         )
         return CovSSIResults(
             frequencies=cluster_results["frequencies"],
@@ -953,9 +1006,7 @@ class CovSSI(OmaAlgorithm):
             else:
                 impulse_response = self._compute_impulse_response(signal, time_step)
         except Exception as error:
-            raise ModalIdentificationError(
-                f"Impulse response computation failed: {error}"
-            ) from error
+            raise ModalIdentificationError(f"Impulse response computation failed: {error}") from error
 
         hankel_matrix = self._build_hankel_matrix(impulse_response)
         del impulse_response
@@ -977,7 +1028,9 @@ class CovSSI(OmaAlgorithm):
             dashboard_data = None
 
         modal_parameters_with_stability = self._stability_poles_analysis(
-            modal_parameters["frequencies"], modal_parameters["damping_ratios"], modal_parameters["mode_shapes"]
+            modal_parameters["frequencies"],
+            modal_parameters["damping_ratios"],
+            modal_parameters["mode_shapes"],
         )
         del modal_parameters
 
@@ -1000,7 +1053,9 @@ class CovSSI(OmaAlgorithm):
         return cov_results, dashboard_data
 
     def _create_dashboard_graph_data(
-        self, stability_results: StabilityModalIdentification, model_orders: npt.NDArray[np.int32]
+        self,
+        stability_results: StabilityModalIdentification,
+        model_orders: npt.NDArray[np.int32],
     ) -> tuple[dict[str, list[float]], dict[str, list[int]]]:
         """Return frequency and stability status to plot in the dashboard.
 
@@ -1027,7 +1082,14 @@ class CovSSI(OmaAlgorithm):
             for index in np.arange(len(stability_results["stability_status"]) - 1, -1, -1):
                 stable_indexes = np.nonzero(stability_results["stability_status"][index] == pole_index)[0]
                 if stable_indexes.size:
-                    frequency.extend(list(map(float, stability_results["frequencies"][index][stable_indexes])))
+                    frequency.extend(
+                        list(
+                            map(
+                                float,
+                                stability_results["frequencies"][index][stable_indexes],
+                            )
+                        )
+                    )
                     model_order.extend(
                         (np.ones(len(stable_indexes), dtype=np.int32) * model_orders[-((index + 1) + 1)]).tolist()
                     )
@@ -1097,7 +1159,9 @@ class CovSSI(OmaAlgorithm):
             steps,
         )
         reordered_poles_parameters = self._stability_poles_analysis(
-            reordered_oma["frequencies"], reordered_oma["damping_ratios"], reordered_oma["mode_shapes"]
+            reordered_oma["frequencies"],
+            reordered_oma["damping_ratios"],
+            reordered_oma["mode_shapes"],
         )
         del reordered_oma
         frequency_by_stability, model_order_by_stability = self._create_dashboard_graph_data(
