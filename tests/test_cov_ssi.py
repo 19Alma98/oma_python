@@ -1085,3 +1085,20 @@ def test_cov_ssi_should_raise_error_if_impulse_response_computation_fails(optimi
         match="Impulse response computation failed: test",
     ):
         algorithm.apply(signal=signal, sampling_frequency=60, optimized=optimized)
+
+
+def test_get_svd_plot_data_should_raise_if_dashboard_data_is_none():
+    algorithm = CovSSI(
+        frequency_max=5,
+        frequency_min=0,
+        number_of_fft_points=2**4,
+        time_lag=1.2,
+        continuous_mode=True,
+    )
+    signal = np.ones((64, 2), dtype=BASE_DTYPE)
+    with pytest.raises(ModalIdentificationError, match="continuous_mode"):
+        algorithm.get_svd_plot_data(
+            signal=signal,
+            sampling_frequency=60.0,
+            dashboard_data=None,
+        )

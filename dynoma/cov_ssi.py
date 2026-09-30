@@ -120,7 +120,13 @@ class CovSSI(OmaAlgorithm):
         description="Minimum inclusive cluster size (poles) retained after clustering.",
     )
     maximum_distance: float = Field(ge=0, default=0.03)
-    continuous_mode: bool = Field(default=True)
+    continuous_mode: bool = Field(
+        default=True,
+        description=(
+            "If True (default), apply omits dashboard_data (returns None). "
+            "Set False to retain dashboard payload for get_svd_plot_data."
+        ),
+    )
 
     DECAY_RATE: Final[float] = Field(ge=0, le=1, default=0.75)
 
@@ -1026,12 +1032,14 @@ class CovSSI(OmaAlgorithm):
         Args:
             signal (SignalT): The signal to apply the algorithm to.
             sampling_frequency (float): The sampling frequency of the signal.
-            continuous_mode (bool): Whether to use continuous mode.
             optimized (bool): Whether to use the optimized version of the algorithm.
             shuffle (bool): Whether to shuffle the modal parameters.
 
         Returns:
-            tuple[CovSSIResults, ModalDashboardData | None]: The clustered modal parameters and the dashboard data if continuous mode is used, otherwise None.
+            tuple[CovSSIResults, ModalDashboardData | None]: The clustered modal
+            parameters and dashboard payload. ``dashboard_data`` is
+            ``ModalDashboardData`` when ``continuous_mode`` is False; ``None`` when
+            ``continuous_mode`` is True (default).
         """
         if (len(signal.shape) != 2) or (np.size(signal) == 0):
             raise ModalIdentificationError(
@@ -1179,14 +1187,26 @@ class CovSSI(OmaAlgorithm):
     def get_svd_plot_data(self, *, signal: SignalT, sampling_frequency: float, dashboard_data) -> CovSSIDashboardData:
         """Get the SVD plot data.
 
+        Requires dashboard payload from ``apply`` with ``continuous_mode=False``.
+        When ``continuous_mode=True`` (default), ``apply`` returns ``dashboard_data=None``
+        and this method raises.
+
         Args:
-            signal (SignalT): The signal to apply the algorithm to.
-            dashboard_data (dict): The dashboard data.
-            sampling_frequency (float): The sampling frequency of the signal.
+            signal: The signal used to compute SVD lines for the plot.
+            sampling_frequency: Sampling frequency of the signal.
+            dashboard_data: Modal cut-off / order metadata from ``apply``; must not be ``None``.
 
         Returns:
-            CovSSIDashboardData: The SVD plot data.
+            CovSSIDashboardData: Data for SVD / stability dashboard plots.
+
+        Raises:
+            ModalIdentificationError: If ``dashboard_data`` is ``None``.
         """
+        if dashboard_data is None:
+            raise ModalIdentificationError(
+                "dashboard_data is None; call apply with continuous_mode=False "
+                "to obtain dashboard data for get_svd_plot_data"
+            )
         frequencies, eigenvalues_matrix, _ = self.compute_signal_svd(
             signal=signal, sampling_frequency=sampling_frequency
         )
